@@ -4,6 +4,31 @@
 const { PrismaClient } = require('@prisma/client');
 const slugify = require('slugify');
 
+/**
+ * Assainit le HTML généré par le LLM.
+ * Supprime les balises dangereuses (<script>, <style>, <iframe>, etc.)
+ * et les attributs d'événements inline (onclick, onerror…).
+ */
+function sanitizeHtml(html) {
+  if (!html || typeof html !== 'string') return '';
+  return html
+    // Supprimer les balises dangereuses et leur contenu
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<iframe[\s\S]*?<\/iframe>/gi, '')
+    .replace(/<object[\s\S]*?<\/object>/gi, '')
+    .replace(/<embed[^>]*>/gi, '')
+    .replace(/<form[\s\S]*?<\/form>/gi, '')
+    // Supprimer les attributs d'événements inline (on*)
+    .replace(/\s+on\w+="[^"]*"/gi, '')
+    .replace(/\s+on\w+='[^']*'/gi, '')
+    .replace(/\s+on\w+=\w+/gi, '')
+    // Supprimer les URLs javascript:
+    .replace(/href="javascript:[^"]*"/gi, 'href="#"')
+    .replace(/src="javascript:[^"]*"/gi, '')
+    .trim();
+}
+
 const prisma = new PrismaClient();
 
 /**
@@ -47,7 +72,7 @@ async function saveArticle(sourceArticle, rewritten, status = 'published') {
       sourcePublished: sourceArticle.sourcePublished,
       titleFr: rewritten.titleFr,
       summaryFr: rewritten.summaryFr,
-      contentFr: rewritten.contentFr,
+      contentFr: sanitizeHtml(rewritten.contentFr),
       metaDescFr: rewritten.metaDescFr,
       tags: JSON.stringify(rewritten.tags || []),
       imageUrl: sourceArticle.imageUrl || null,
@@ -100,10 +125,11 @@ async function getPublishedArticles({ page = 1, limit = 10, tag } = {}) {
   ]);
 
   // Parser les tags JSON
-  const articlesWithTags = articles.map(a => ({
-    ...a,
-    tags: JSON.parse(a.tags || '[]')
-  }));
+  const articlesWithTags = articles.map(a => {
+    let tags = [];
+    try { tags = JSON.parse(a.tags || '[]'); } catch { /* ignore malformed */ }
+    return { ...a, tags };
+  });
 
   return {
     articles: articlesWithTags,
@@ -122,7 +148,9 @@ async function getPublishedArticles({ page = 1, limit = 10, tag } = {}) {
 async function getArticleBySlug(slug) {
   const article = await prisma.article.findUnique({ where: { slug } });
   if (!article) return null;
-  return { ...article, tags: JSON.parse(article.tags || '[]') };
+  let tags = [];
+  try { tags = JSON.parse(article.tags || '[]'); } catch { /* ignore malformed */ }
+  return { ...article, tags };
 }
 
 module.exports = { saveArticle, publishArticle, getPublishedArticles, getArticleBySlug };

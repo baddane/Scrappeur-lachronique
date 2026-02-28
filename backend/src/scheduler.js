@@ -41,13 +41,13 @@ async function runPipeline() {
     let success = 0;
     let failed = 0;
 
-    for (const article of newArticles) {
-      const ok = await processArticle(article);
+    for (let i = 0; i < newArticles.length; i++) {
+      const ok = await processArticle(newArticles[i]);
       if (ok) success++;
       else failed++;
 
-      // Pause de 3 secondes entre chaque article
-      if (newArticles.indexOf(article) < newArticles.length - 1) {
+      // Pause de 3 secondes entre chaque article (sauf après le dernier)
+      if (i < newArticles.length - 1) {
         await new Promise(r => setTimeout(r, 3000));
       }
     }

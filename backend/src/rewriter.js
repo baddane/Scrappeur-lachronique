@@ -77,8 +77,19 @@ Réponds UNIQUEMENT avec ce JSON (sans balises markdown, sans explication) :
 }
 
 function parseResponse(text) {
+  // Tentative 1 : nettoyage des balises markdown et parse direct
   const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-  return JSON.parse(cleaned);
+  try {
+    return JSON.parse(cleaned);
+  } catch { /* fallback ci-dessous */ }
+
+  // Tentative 2 : extraire le premier objet JSON valide dans le texte
+  const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+  if (jsonMatch) {
+    return JSON.parse(jsonMatch[0]);
+  }
+
+  throw new Error('Aucun JSON valide trouvé dans la réponse du LLM');
 }
 
 // ─── APPELS PAR PROVIDER ──────────────────────────────────────────────────────
