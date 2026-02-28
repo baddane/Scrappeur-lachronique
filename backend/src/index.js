@@ -21,8 +21,15 @@ app.use(express.json());
 
 app.get('/api/articles', async (req, res) => {
   try {
-    const { page = 1, limit = 10, tag } = req.query;
-    const data = await getPublishedArticles({ page: parseInt(page), limit: parseInt(limit), tag });
+    let page  = parseInt(req.query.page)  || 1;
+    let limit = parseInt(req.query.limit) || 10;
+    const tag = req.query.tag;
+
+    if (page < 1)    page = 1;
+    if (limit < 1)   limit = 1;
+    if (limit > 100) limit = 100;
+
+    const data = await getPublishedArticles({ page, limit, tag });
     res.json(data);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -61,12 +68,17 @@ app.get('/api/llm/providers', (req, res) => {
  */
 app.post('/api/llm/switch', (req, res) => {
   const token = req.headers['x-admin-token'];
-  if (token !== process.env.ADMIN_TOKEN) {
+  if (!token || token !== process.env.ADMIN_TOKEN) {
     return res.status(401).json({ error: 'Non autorisé' });
   }
 
   const { provider, model } = req.body;
   if (!provider) return res.status(400).json({ error: 'Champ "provider" requis' });
+
+  const validProviders = ['claude', 'openai', 'gemini', 'deepseek'];
+  if (!validProviders.includes(provider)) {
+    return res.status(400).json({ error: `Provider invalide. Valeurs acceptées : ${validProviders.join(', ')}` });
+  }
 
   try {
     // Mise à jour immédiate en mémoire
@@ -100,11 +112,25 @@ app.post('/api/llm/switch', (req, res) => {
   }
 });
 
+// ─── ROUTES ADMIN ─────────────────────────────────────────────────────────────
+
+/**
+ * GET /api/admin/verify
+ * Vérifie si le token admin est valide
+ */
+app.get('/api/admin/verify', (req, res) => {
+  const token = req.headers['x-admin-token'];
+  if (!token || token !== process.env.ADMIN_TOKEN) {
+    return res.status(401).json({ error: 'Token invalide' });
+  }
+  res.json({ ok: true });
+});
+
 // ─── ROUTES PIPELINE ──────────────────────────────────────────────────────────
 
 app.post('/api/pipeline/run', async (req, res) => {
   const token = req.headers['x-admin-token'];
-  if (token !== process.env.ADMIN_TOKEN) {
+  if (!token || token !== process.env.ADMIN_TOKEN) {
     return res.status(401).json({ error: 'Non autorisé' });
   }
   res.json({ message: 'Pipeline lancé en arrière-plan' });

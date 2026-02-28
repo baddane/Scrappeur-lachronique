@@ -12,7 +12,7 @@ const parser = new Parser({
 
 const prisma = new PrismaClient();
 
-const SIMPLEFLYING_RSS = 'https://simpleflying.com/feed/';
+const SIMPLEFLYING_RSS = process.env.RSS_FEED_URL || 'https://simpleflying.com/feed/';
 
 /**
  * Récupère les articles du RSS et filtre ceux déjà en BDD

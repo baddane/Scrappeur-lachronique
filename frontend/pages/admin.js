@@ -11,12 +11,30 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 export default function AdminPage() {
   const [token, setToken]           = useState('');
   const [authenticated, setAuth]    = useState(false);
+  const [loginError, setLoginError] = useState('');
+  const [loginLoading, setLoginLoading] = useState(false);
   const [pipelineStatus, setPipeline] = useState(null);
   const [running, setRunning]       = useState(false);
 
-  function handleLogin(e) {
+  async function handleLogin(e) {
     e.preventDefault();
-    if (token.trim()) setAuth(true);
+    if (!token.trim()) return;
+    setLoginLoading(true);
+    setLoginError('');
+    try {
+      const res = await fetch(`${API_URL}/api/admin/verify`, {
+        headers: { 'x-admin-token': token }
+      });
+      if (!res.ok) {
+        setLoginError('Token invalide. Veuillez réessayer.');
+      } else {
+        setAuth(true);
+      }
+    } catch {
+      setLoginError('Impossible de contacter le serveur.');
+    } finally {
+      setLoginLoading(false);
+    }
   }
 
   async function handleRunPipeline() {
@@ -69,19 +87,25 @@ export default function AdminPage() {
             />
             <button
               type="submit"
+              disabled={loginLoading}
               style={{
                 padding: '10px 20px',
-                background: '#0d1b2a',
+                background: loginLoading ? '#9db8d8' : '#0d1b2a',
                 color: 'white',
                 border: 'none',
                 borderRadius: 8,
-                cursor: 'pointer',
+                cursor: loginLoading ? 'not-allowed' : 'pointer',
                 fontFamily: 'sans-serif',
                 fontSize: '0.9rem'
               }}
             >
-              Accéder →
+              {loginLoading ? 'Vérification...' : 'Accéder →'}
             </button>
+            {loginError && (
+              <p style={{ color: '#991b1b', fontSize: '0.85rem', marginTop: 4 }}>
+                {loginError}
+              </p>
+            )}
           </form>
         ) : (
           /* ── DASHBOARD ADMIN ── */
