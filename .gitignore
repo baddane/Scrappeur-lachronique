@@ -1,5 +1,5 @@
-﻿backend/.env
-backend/node_modules/
-backend/prisma/dev.db
+.env
+node_modules/
+prisma/dev.db
 frontend/node_modules/
 frontend/.next/
